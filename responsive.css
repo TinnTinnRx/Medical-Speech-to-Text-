@@ -1,0 +1,17 @@
+/* responsive.css */
+@media (max-width: 768px) {
+  .container { padding: 0 1rem; }
+  .footer-content { flex-direction: column; align-items: flex-start; gap: 1rem; }
+  .results-header { flex-direction: column; align-items: flex-start; gap: 1rem; }
+  .file-header { flex-direction: column; align-items: flex-start; }
+  .file-meta { flex-wrap: wrap; }
+  .navbar .container { gap: 1rem; }
+  .nav-actions { display: flex; gap: 0.5rem; align-items: center; }
+}
+
+@media (max-width: 480px) {
+  .hero-subtitle { font-size: 1rem; }
+  .hero-title { font-size: 2rem; }
+  .btn-large { width: 100%; }
+  .toast { min-width: 240px; max-width: 90vw; }
+}
