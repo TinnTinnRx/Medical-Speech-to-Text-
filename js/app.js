@@ -1,5 +1,6 @@
 /**
- * Main Application Logic (Updated for Real API)
+ * Medical Speech-to-Text App
+ * ใช้ Web Speech API สำหรับถอดเสียงจริง
  */
 
 // ===========================================
@@ -8,15 +9,7 @@
 let currentFile = null;
 let audioRecorder = null;
 let recordingTimer = null;
-
-// API Configuration
-const API_CONFIG = {
-    baseURL: 'http://localhost:8000',  // เปลี่ยนเป็น URL backend ของคุณ
-    endpoints: {
-        transcribe: '/transcribe',
-        health: '/health'
-    }
-};
+let recognition = null;
 
 // ===========================================
 // Initialize
@@ -28,25 +21,27 @@ document.addEventListener('DOMContentLoaded', () => {
     initializeUpload();
     initializeFilePreview();
     initializeTranscription();
-    checkAPIConnection();
+    checkSpeechRecognitionSupport();
     
     console.log('✅ App ready');
 });
 
 // ===========================================
-// Check API Connection
+// Check Browser Support
 // ===========================================
-async function checkAPIConnection() {
-    try {
-        const response = await fetch(`${API_CONFIG.baseURL}${API_CONFIG.endpoints.health}`);
-        if (response.ok) {
-            const data = await response.json();
-            console.log('✅ API Connected:', data);
-            showToast('API connected successfully', 'success');
+function checkSpeechRecognitionSupport() {
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    
+    if (!SpeechRecognition) {
+        showToast('⚠️ เบราว์เซอร์ของคุณไม่รองรับการถอดเสียง กรุณาใช้ Google Chrome', 'warning');
+        
+        const transcribeBtn = document.getElementById('transcribeBtn');
+        if (transcribeBtn) {
+            transcribeBtn.disabled = true;
+            transcribeBtn.innerHTML = '<i class="fas fa-exclamation-triangle"></i> ไม่รองรับ';
         }
-    } catch (error) {
-        console.warn('⚠️ API not available:', error);
-        showToast('Running in demo mode (Backend not connected)', 'warning');
+    } else {
+        console.log('✅ Speech Recognition supported');
     }
 }
 
@@ -71,17 +66,17 @@ function initializeRecorder() {
             updateRecordingTime();
             recordingTimer = setInterval(updateRecordingTime, 1000);
             
-            showToast('Recording started', 'success');
+            showToast('🎤 กำลังบันทึกเสียง...', 'success');
             
         } catch (error) {
             console.error('Recording error:', error);
             
             if (error.name === 'NotAllowedError') {
-                showToast('กรุณาอนุญาตให้ใช้ไมโครโฟน', 'error');
+                showToast('❌ กรุณาอนุญาตให้ใช้ไมโครโฟน', 'error');
             } else if (error.name === 'NotFoundError') {
-                showToast('ไม่พบไมโครโฟน', 'error');
+                showToast('❌ ไม่พบไมโครโฟน', 'error');
             } else {
-                showToast('ไม่สามารถเริ่มบันทึกได้: ' + error.message, 'error');
+                showToast('❌ ไม่สามารถบันทึกได้: ' + error.message, 'error');
             }
         }
     });
@@ -95,11 +90,13 @@ function initializeRecorder() {
         
         clearInterval(recordingTimer);
         document.querySelector('.recording-time').textContent = '00:00';
+        
+        showToast('⏹️ หยุดบันทึกแล้ว', 'info');
     });
     
     document.addEventListener('recordingComplete', (e) => {
         handleFileSelection(e.detail.file);
-        showToast('บันทึกเสียงเสร็จสิ้น!', 'success');
+        showToast('✅ บันทึกเสียงเสร็จสิ้น!', 'success');
     });
 }
 
@@ -156,16 +153,16 @@ function initializeUpload() {
 }
 
 function handleFileSelection(file) {
-    const validTypes = ['audio/wav', 'audio/mpeg', 'audio/mp3', 'audio/x-m4a', 'audio/flac'];
-    const validExt = /\.(wav|mp3|m4a|flac)$/i;
+    const validTypes = ['audio/wav', 'audio/mpeg', 'audio/mp3', 'audio/x-m4a', 'audio/flac', 'audio/webm'];
+    const validExt = /\.(wav|mp3|m4a|flac|webm)$/i;
     
     if (!validTypes.includes(file.type) && !file.name.match(validExt)) {
-        showToast('ประเภทไฟล์ไม่ถูกต้อง', 'error');
+        showToast('❌ ประเภทไฟล์ไม่ถูกต้อง', 'error');
         return;
     }
     
     if (file.size > 100 * 1024 * 1024) {
-        showToast('ไฟล์ใหญ่เกินไป (สูงสุด 100MB)', 'error');
+        showToast('❌ ไฟล์ใหญ่เกินไป (สูงสุด 100MB)', 'error');
         return;
     }
     
@@ -189,7 +186,7 @@ function handleFileSelection(file) {
         document.getElementById('fileDuration').textContent = formatDuration(audioPlayer.duration);
     });
     
-    showToast('โหลดไฟล์สำเร็จ', 'success');
+    showToast('✅ โหลดไฟล์สำเร็จ', 'success');
 }
 
 // ===========================================
@@ -208,12 +205,12 @@ function initializeFilePreview() {
         document.getElementById('audioFile').value = '';
         document.getElementById('audioPlayer').src = '';
         
-        showToast('ลบไฟล์แล้ว', 'info');
+        showToast('🗑️ ลบไฟล์แล้ว', 'info');
     });
 }
 
 // ===========================================
-// Transcription (Updated for Real API)
+// Transcription (Web Speech API)
 // ===========================================
 function initializeTranscription() {
     const transcribeBtn = document.getElementById('transcribeBtn');
@@ -221,27 +218,33 @@ function initializeTranscription() {
     const newBtn = document.getElementById('newBtn');
     
     // Transcribe Button
-    transcribeBtn?.addEventListener('click', async () => {
+    transcribeBtn?.addEventListener('click', () => {
         if (!currentFile) {
-            showToast('กรุณาเลือกไฟล์เสียงก่อน', 'error');
+            showToast('❌ กรุณาเลือกไฟล์เสียงก่อน', 'error');
             return;
         }
         
-        await transcribeAudio();
+        transcribeAudioWithWebSpeech();
     });
     
     // Copy Button
     copyBtn?.addEventListener('click', () => {
         const text = document.getElementById('transcriptText').textContent;
         
+        if (!text || text === 'กำลังรอข้อมูล...' || text === 'undefined') {
+            showToast('❌ ไม่มีข้อความให้คัดลอก', 'error');
+            return;
+        }
+        
         navigator.clipboard.writeText(text).then(() => {
-            showToast('คัดลอกข้อความแล้ว!', 'success');
+            showToast('📋 คัดลอกข้อความแล้ว!', 'success');
             copyBtn.innerHTML = '<i class="fas fa-check"></i>';
             setTimeout(() => {
                 copyBtn.innerHTML = '<i class="fas fa-copy"></i>';
             }, 2000);
         }).catch(err => {
-            showToast('ไม่สามารถคัดลอกได้', 'error');
+            console.error('Copy error:', err);
+            showToast('❌ ไม่สามารถคัดลอกได้', 'error');
         });
     });
     
@@ -252,91 +255,42 @@ function initializeTranscription() {
 }
 
 // ===========================================
-// Transcribe Audio Function
-// ===========================================
-async function transcribeAudio() {
-    try {
-        // Show loading
-        showToast('กำลังประมวลผล...', 'info');
-        document.getElementById('transcriptText').textContent = 'กำลังถอดเสียง กรุณารอสักครู่...';
-        document.getElementById('resultsSection').style.display = 'block';
-        
-        // Scroll to results
-        document.getElementById('resultsSection').scrollIntoView({
-            behavior: 'smooth',
-            block: 'start'
-        });
-        
-        // Prepare form data
-        const formData = new FormData();
-        formData.append('audio_file', currentFile);
-        formData.append('language', 'th');
-        formData.append('generate_pdf', 'false');
-        
-        // Call API
-        const response = await fetch(`${API_CONFIG.baseURL}${API_CONFIG.endpoints.transcribe}`, {
-            method: 'POST',
-            body: formData
-        });
-        
-        if (!response.ok) {
-            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-        }
-        
-        // Get result
-        const result = await response.json();
-        
-        // Display transcription
-        if (result.success && result.transcription) {
-            displayTranscriptionResults(result.transcription);
-        } else {
-            throw new Error('Invalid response from API');
-        }
-        
-    } catch (error) {
-        console.error('Transcription error:', error);
-        
-        // Check if API is available
-        if (error.message.includes('Failed to fetch')) {
-            showToast('ไม่สามารถเชื่อมต่อ Backend API - กำลังใช้ Demo Mode', 'warning');
-            displayDemoResults();
-        } else {
-            showToast('เกิดข้อผิดพลาด: ' + error.message, 'error');
-            document.getElementById('transcriptText').textContent = 'เกิดข้อผิดพลาดในการถอดเสียง';
-        }
-    }
-}
-
-// ===========================================
 // Transcribe with Web Speech API
 // ===========================================
-async function transcribeAudio() {
-    try {
-        // Check browser support
-        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-        
-        if (!SpeechRecognition) {
-            showToast('เบราว์เซอร์ของคุณไม่รองรับการถอดเสียง กรุณาใช้ Chrome', 'error');
-            return;
-        }
-        
-        // Show loading
-        document.getElementById('transcriptText').textContent = '🎤 กำลังฟังเสียงและถอดเสียง...\nกรุณาเปิดเสียงในเครื่องของคุณ';
+function transcribeAudioWithWebSpeech() {
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    
+    if (!SpeechRecognition) {
+        showToast('❌ เบราว์เซอร์ไม่รองรับ กรุณาใช้ Google Chrome', 'error');
+        document.getElementById('transcriptText').textContent = 'เบราว์เซอร์ของคุณไม่รองรับการถอดเสียง กรุณาใช้ Google Chrome';
         document.getElementById('resultsSection').style.display = 'block';
+        return;
+    }
+    
+    try {
+        // Show results section immediately
+        document.getElementById('resultsSection').style.display = 'block';
+        document.getElementById('transcriptText').textContent = '🎤 กำลังเริ่มถอดเสียง...\n\nกำลังเล่นเสียงและฟัง กรุณารอสักครู่...';
         
-        document.getElementById('resultsSection').scrollIntoView({
-            behavior: 'smooth',
-            block: 'start'
-        });
+        // Scroll to results
+        setTimeout(() => {
+            document.getElementById('resultsSection').scrollIntoView({
+                behavior: 'smooth',
+                block: 'start'
+            });
+        }, 100);
         
-        // Create recognition instance
-        const recognition = new SpeechRecognition();
+        // Create recognition
+        recognition = new SpeechRecognition();
         recognition.continuous = true;
         recognition.interimResults = true;
-        recognition.lang = 'th-TH';  // ภาษาไทย
+        recognition.lang = 'th-TH';
+        recognition.maxAlternatives = 1;
         
         let finalTranscript = '';
+        let isFirstResult = true;
         
+        // On result
         recognition.onresult = (event) => {
             let interimTranscript = '';
             
@@ -351,112 +305,113 @@ async function transcribeAudio() {
             }
             
             // Update display
-            const displayText = finalTranscript + (interimTranscript ? `\n\n[กำลังฟัง: ${interimTranscript}]` : '');
-            document.getElementById('transcriptText').textContent = displayText || 'กำลังรอเสียง...';
+            let displayText = finalTranscript;
+            
+            if (interimTranscript) {
+                displayText += `\n\n[กำลังฟัง: ${interimTranscript}]`;
+            }
+            
+            if (displayText.trim()) {
+                document.getElementById('transcriptText').textContent = displayText;
+                
+                if (isFirstResult) {
+                    showToast('✅ เริ่มถอดเสียงได้แล้ว!', 'success');
+                    isFirstResult = false;
+                }
+            }
         };
         
+        // On error
         recognition.onerror = (event) => {
             console.error('Recognition error:', event.error);
             
-            if (event.error === 'no-speech') {
-                showToast('ไม่พบเสียงพูด กรุณาลองใหม่', 'warning');
-            } else if (event.error === 'network') {
-                showToast('ไม่มีการเชื่อมต่ออินเทอร์เน็ต', 'error');
-            } else {
-                showToast('เกิดข้อผิดพลาด: ' + event.error, 'error');
+            let errorMessage = '';
+            
+            switch(event.error) {
+                case 'no-speech':
+                    errorMessage = 'ไม่พบเสียงพูด กรุณาเปิดเสียงและลองใหม่';
+                    break;
+                case 'audio-capture':
+                    errorMessage = 'ไม่สามารถจับเสียงได้ ตรวจสอบไมโครโฟนหรือลำโพง';
+                    break;
+                case 'not-allowed':
+                    errorMessage = 'ไม่ได้รับอนุญาตให้ใช้ไมโครโฟน';
+                    break;
+                case 'network':
+                    errorMessage = 'ไม่มีการเชื่อมต่ออินเทอร์เน็ต';
+                    break;
+                default:
+                    errorMessage = `เกิดข้อผิดพลาด: ${event.error}`;
             }
-        };
-        
-        recognition.onend = () => {
+            
+            showToast('❌ ' + errorMessage, 'error');
+            
             if (finalTranscript.trim() === '') {
-                document.getElementById('transcriptText').textContent = 'ไม่สามารถถอดเสียงได้ กรุณาลองใหม่';
-                showToast('ไม่พบข้อความในเสียง', 'warning');
-            } else {
-                showToast('ถอดเสียงเสร็จสิ้น!', 'success');
+                document.getElementById('transcriptText').textContent = 
+                    `ไม่สามารถถอดเสียงได้\n\nสาเหตุ: ${errorMessage}\n\nวิธีแก้:\n` +
+                    `1. เปิดเสียงลำโพงให้ได้ยิน\n` +
+                    `2. ใช้ Google Chrome\n` +
+                    `3. ต้องมีการเชื่อมต่ออินเทอร์เน็ต\n` +
+                    `4. เปิดเสียงในเครื่อง (ไม่ใช่เปิดเสียงเพื่อให้คนอื่นฟัง)`;
             }
         };
         
-        // Play audio and start recognition
+        // On end
+        recognition.onend = () => {
+            console.log('Recognition ended');
+            
+            if (finalTranscript.trim() === '') {
+                document.getElementById('transcriptText').textContent = 
+                    `ไม่พบเสียงพูดในไฟล์\n\n` +
+                    `วิธีการใช้งาน:\n` +
+                    `1. เปิดเสียงลำโพงในเครื่องของคุณ\n` +
+                    `2. คลิก "เริ่มถอดเสียง"\n` +
+                    `3. ไมโครโฟนจะฟังเสียงที่ออกจากลำโพง\n` +
+                    `4. ระบบจะถอดเสียงอัตโนมัติ\n\n` +
+                    `หมายเหตุ: Web Speech API ทำงานโดยการฟังเสียงจากไมโครโฟน`;
+                    
+                showToast('⚠️ ไม่พบเสียงพูด', 'warning');
+            } else {
+                showToast('✅ ถอดเสียงเสร็จสิ้น!', 'success');
+            }
+        };
+        
+        // Start
+        recognition.start();
+        showToast('🎧 กำลังฟังเสียง... (กรุณาเปิดลำโพง)', 'info');
+        
+        // Play audio
         const audioPlayer = document.getElementById('audioPlayer');
         audioPlayer.currentTime = 0;
         audioPlayer.play();
-        recognition.start();
         
-        showToast('เริ่มถอดเสียง... (กำลังฟังเสียงจากไฟล์)', 'info');
-        
-        // Stop recognition when audio ends
+        // Stop when audio ends
         audioPlayer.onended = () => {
-            recognition.stop();
+            setTimeout(() => {
+                if (recognition) {
+                    recognition.stop();
+                }
+            }, 1000);
         };
         
     } catch (error) {
         console.error('Transcription error:', error);
-        showToast('เกิดข้อผิดพลาด: ' + error.message, 'error');
+        showToast('❌ เกิดข้อผิดพลาด: ' + error.message, 'error');
+        document.getElementById('transcriptText').textContent = 'เกิดข้อผิดพลาด: ' + error.message;
+        document.getElementById('resultsSection').style.display = 'block';
     }
-}
-
-
-
-
-
-
-
-// ===========================================
-// Display Real Transcription Results
-// ===========================================
-function displayTranscriptionResults(data) {
-    // Extract text from response
-    const transcriptText = data.processed_text || data.cleaned_text || data.raw_text || data.text;
-    
-    if (!transcriptText) {
-        showToast('ไม่พบข้อความในผลลัพธ์', 'warning');
-        document.getElementById('transcriptText').textContent = 'ไม่สามารถถอดเสียงได้';
-        return;
-    }
-    
-    // Display transcription
-    document.getElementById('transcriptText').textContent = transcriptText;
-    
-    // Show success message
-    showToast('ถอดเสียงสำเร็จ!', 'success');
-    
-    console.log('✅ Transcription result:', data);
-}
-
-// ===========================================
-// Demo Results (Fallback)
-// ===========================================
-function displayDemoResults() {
-    const demoText = `ผู้ป่วยชายอายุ 45 ปี มาด้วยอาการไข้สูง ไอมี 3 วัน
-
-ตรวจร่างกาย:
-- ความดันโลหิต: 120/80 mmHg
-- อุณหภูมิร่างกาย: 38.5°C
-- อัตราการเต้นของหัวใจ: 85 ครั้งต่อนาที
-- น้ำหนัก: 70 kg
-- ส่วนสูง: 170 cm
-
-การวินิจฉัย: Upper Respiratory Tract Infection (URTI)
-
-การรักษา:
-- Paracetamol 500 mg วันละ 3 ครั้ง หลังอาหาร
-- Amoxicillin 500 mg วันละ 3 ครั้ง เป็นเวลา 5 วัน
-- Cetirizine 10 mg วันละ 1 ครั้ง ก่อนนอน
-
-คำแนะนำ:
-- พักผ่อนให้เพียงพอ
-- ดื่มน้ำมากๆ อย่างน้อย 2 ลิตรต่อวัน
-- หลีกเลี่ยงอาหารรสจัด
-- นัดติดตามอาการอีกครั้งใน 1 สัปดาห์`;
-    
-    document.getElementById('transcriptText').textContent = demoText;
-    showToast('แสดงผล Demo (Backend ไม่เชื่อมต่อ)', 'warning');
 }
 
 // ===========================================
 // Reset App
 // ===========================================
 function resetApp() {
+    // Stop recognition if running
+    if (recognition) {
+        recognition.stop();
+        recognition = null;
+    }
+    
     // Hide results
     document.getElementById('resultsSection').style.display = 'none';
     
@@ -469,13 +424,18 @@ function resetApp() {
     // Clear file
     currentFile = null;
     document.getElementById('audioFile').value = '';
-    document.getElementById('audioPlayer').src = '';
     
-    // Clear results
-    document.getElementById('transcriptText').textContent = '';
+    const audioPlayer = document.getElementById('audioPlayer');
+    audioPlayer.pause();
+    audioPlayer.src = '';
+    
+    // Clear text
+    document.getElementById('transcriptText').textContent = 'กำลังรอข้อมูล...';
     
     // Scroll to top
     window.scrollTo({ top: 0, behavior: 'smooth' });
+    
+    showToast('🔄 เริ่มใหม่', 'info');
 }
 
-console.log('✅ App loaded');
+console.log('✅ App loaded with Web Speech API');
