@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Medical AI Transcription | ระบบถอดเสียงทางการแพทย์</title>
+    
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Noto+Sans+Thai:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- Stylesheets -->
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="css/animations.css">
+    <link rel="stylesheet" href="css/responsive.css">
+</head>
+<body>
+    
+    <!-- Navigation -->
+    <nav class="navbar">
+        <div class="container">
+            <div class="nav-brand">
+                <div class="logo">
+                    <i class="fas fa-brain"></i>
+                    <span>Medical AI</span>
+                </div>
+                <span class="badge">BETA</span>
+            </div>
+            
+            <div class="nav-actions">
+                <button id="darkModeToggle" class="btn-icon" title="Toggle Dark Mode">
+                    <i class="fas fa-moon"></i>
+                </button>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Hero Section -->
+    <section class="hero">
+        <div class="container">
+            <div class="hero-content">
+                <div class="hero-badge">
+                    <i class="fas fa-sparkles"></i>
+                    Powered by AI
+                </div>
+                <h1 class="hero-title">
+                    Medical Speech-to-Text
+                    <span class="gradient-text">ระบบถอดเสียงทางการแพทย์</span>
+                </h1>
+                <p class="hero-subtitle">
+                    บันทึกเสียงจากไมโครโฟนหรืออัพโหลดไฟล์ แล้วแปลงเป็นข้อความด้วย AI
+                </p>
+                <button class="btn btn-primary btn-large" onclick="scrollToSection()">
+                    <i class="fas fa-rocket"></i>
+                    เริ่มใช้งานเลย
+                </button>
+            </div>
+        </div>
+    </section>
+
+    <!-- Main Content -->
+    <main class="container">
+        
+        <!-- Recording/Upload Section -->
+        <section class="card" id="mainSection">
+            <h2>
+                <i class="fas fa-microphone-alt"></i>
+                บันทึกหรืออัพโหลดเสียง
+            </h2>
+            
+            <!-- Microphone Recording -->
+            <div class="recording-section" id="recordingSection">
+                <h3>
+                    <i class="fas fa-microphone"></i>
+                    บันทึกเสียงจากไมโครโฟน
+                </h3>
+                
+                <div class="recorder-box">
+                    <div class="recorder-visual">
+                        <div class="mic-icon">
+                            <i class="fas fa-microphone"></i>
+                        </div>
+                        <div id="recordingStatus" class="recording-status" style="display: none;">
+                            <span class="pulse-dot"></span>
+                            <span class="recording-time">00:00</span>
+                        </div>
+                    </div>
+                    
+                    <div class="recorder-controls">
+                        <button id="startRecordBtn" class="btn btn-record">
+                            <i class="fas fa-circle"></i>
+                            เริ่มบันทึก
+                        </button>
+                        <button id="stopRecordBtn" class="btn btn-stop" style="display: none;">
+                            <i class="fas fa-stop"></i>
+                            หยุดบันทึก
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Divider -->
+            <div class="divider">
+                <span>หรือ</span>
+            </div>
+            
+            <!-- File Upload -->
+            <div class="upload-section">
+                <h3>
+                    <i class="fas fa-cloud-upload-alt"></i>
+                    อัพโหลดไฟล์เสียง
+                </h3>
+                
+                <div class="upload-zone" id="uploadZone">
+                    <div class="upload-icon">
+                        <i class="fas fa-file-audio"></i>
+                    </div>
+                    <h4>วางไฟล์ที่นี่ หรือคลิกเพื่อเลือก</h4>
+                    <p>รองรับ: WAV, MP3, M4A, FLAC (สูงสุด 100MB)</p>
+                    <input type="file" id="audioFile" accept="audio/*" hidden>
+                </div>
+            </div>
+
+            <!-- File Preview -->
+            <div id="filePreview" class="file-preview" style="display: none;">
+                <div class="file-card">
+                    <div class="file-header">
+                        <div class="file-icon">
+                            <i class="fas fa-file-audio"></i>
+                        </div>
+                        <div class="file-info">
+                            <h4 id="fileName">audio.wav</h4>
+                            <div class="file-meta">
+                                <span id="fileSize">0 MB</span>
+                                <span class="dot">•</span>
+                                <span id="fileDuration">0:00</span>
+                            </div>
+                        </div>
+                        <button class="btn-remove" id="removeFile" title="Remove">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+
+                    <div class="audio-player">
+                        <audio id="audioPlayer" controls></audio>
+                    </div>
+
+                    <button class="btn btn-success btn-large btn-block" id="transcribeBtn">
+                        <i class="fas fa-play"></i>
+                        เริ่มถอดเสียง
+                    </button>
+                </div>
+            </div>
+        </section>
+
+        <!-- Results Section -->
+        <section id="resultsSection" class="card" style="display: none;">
+            <div class="results-header">
+                <h2>
+                    <i class="fas fa-check-circle"></i>
+                    ผลการถอดเสียง
+                </h2>
+                <button class="btn btn-secondary" id="newBtn">
+                    <i class="fas fa-plus"></i>
+                    ใหม่
+                </button>
+            </div>
+            
+            <div class="transcript-box">
+                <div class="transcript-header">
+                    <h3>ข้อความที่ถอดได้</h3>
+                    <button class="btn-icon" id="copyBtn" title="Copy">
+                        <i class="fas fa-copy"></i>
+                    </button>
+                </div>
+                <div id="transcriptText" class="transcript-text">
+                    กำลังรอข้อมูล...
+                </div>
+            </div>
+
+            <div class="info-box">
+                <i class="fas fa-info-circle"></i>
+                <span>นี่คือ Demo Version - ผลลัพธ์จริงต้องเชื่อมต่อกับ Backend API</span>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="container">
+            <div class="footer-content">
+                <div class="footer-brand">
+                    <div class="logo">
+                        <i class="fas fa-brain"></i>
+                        <span>Medical AI</span>
+                    </div>
+                    <p>ระบบถอดเสียงทางการแพทย์ด้วย AI</p>
+                </div>
+                <div class="footer-links">
+                    <a href="#"><i class="fas fa-book"></i> คู่มือ</a>
+                    <a href="#"><i class="fas fa-shield-alt"></i> ความเป็นส่วนตัว</a>
+                    <a href="#"><i class="fas fa-question-circle"></i> ช่วยเหลือ</a>
+                </div>
+            </div>
+            <div class="footer-bottom">
+                <p>
+                    <i class="fas fa-exclamation-triangle"></i>
+                    For research and educational purposes only
+                </p>
+                <p>&copy; 2024 Medical AI. All rights reserved.</p>
+            </div>
+        </div>
+    </footer>
+
+    <!-- Toast Container -->
+    <div id="toastContainer" class="toast-container"></div>
+
+    <!-- Scripts -->
+    <script src="js/recorder.js"></script>
+    <script src="js/ui.js"></script>
+    <script src="js/app.js"></script>
+
+</body>
+</html>
