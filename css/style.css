@@ -585,3 +585,31 @@ main {
 .toast.error i { color: var(--danger); }
 .toast.warning i { color: var(--warning); }
 .toast.info i { color: var(--primary); }
+
+/* Alert Box */
+.alert {
+    padding: var(--space-md);
+    border-radius: var(--radius-lg);
+    margin-bottom: var(--space-lg);
+    display: flex;
+    gap: var(--space-md);
+    align-items: flex-start;
+}
+
+.alert-info {
+    background: rgba(59, 130, 246, 0.1);
+    border-left: 4px solid var(--primary);
+}
+
+.alert i {
+    font-size: 1.5rem;
+    color: var(--primary);
+}
+
+.alert ol {
+    line-height: 1.8;
+}
+
+.alert small {
+    color: var(--text-secondary);
+}
