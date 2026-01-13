@@ -439,3 +439,77 @@ function resetApp() {
 }
 
 console.log('✅ App loaded with Web Speech API');
+
+
+// ===========================================
+// Transcribe with Backend API
+// ===========================================
+async function transcribeAudioWithBackend() {
+    try {
+        if (!currentFile) {
+            showToast('❌ กรุณาเลือกไฟล์เสียงก่อน', 'error');
+            return;
+        }
+        
+        // Show loading
+        document.getElementById('resultsSection').style.display = 'block';
+        document.getElementById('transcriptText').textContent = '⏳ กำลังประมวลผลด้วย AI...\n\nกรุณารอสักครู่...';
+        
+        document.getElementById('resultsSection').scrollIntoView({
+            behavior: 'smooth',
+            block: 'start'
+        });
+        
+        showToast('📤 กำลังอัพโหลดและประมวลผล...', 'info');
+        
+        // Prepare form data
+        const formData = new FormData();
+        formData.append('audio_file', currentFile);
+        formData.append('language', 'th');
+        formData.append('generate_pdf', 'false');
+        
+        // Call API
+        const response = await fetch('https://your-backend-url.com/transcribe', {
+            method: 'POST',
+            body: formData
+        });
+        
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}`);
+        }
+        
+        const result = await response.json();
+        
+        // Extract text
+        let transcriptText = '';
+        
+        if (result.transcription) {
+            transcriptText = result.transcription.processed_text || 
+                           result.transcription.cleaned_text || 
+                           result.transcription.raw_text || 
+                           result.transcription.text;
+        }
+        
+        // Display
+        if (transcriptText && transcriptText.trim()) {
+            document.getElementById('transcriptText').textContent = transcriptText;
+            showToast('✅ ถอดเสียงสำเร็จ!', 'success');
+        } else {
+            throw new Error('No text in response');
+        }
+        
+    } catch (error) {
+        console.error('Backend API error:', error);
+        showToast('❌ ไม่สามารถเชื่อมต่อ Backend ได้', 'error');
+        
+        // Show helpful message
+        document.getElementById('transcriptText').textContent = 
+            `ไม่สามารถเชื่อมต่อ Backend API\n\n` +
+            `เหตุผล: ${error.message}\n\n` +
+            `วิธีแก้:\n` +
+            `1. Deploy Backend ตาม Guide ที่ให้ไป\n` +
+            `2. อัพเดท URL ใน js/app.js\n` +
+            `3. ตรวจสอบ CORS settings\n\n` +
+            `หรือใช้ Web Speech API (กดปุ่มด้านล่าง)`;
+    }
+}
