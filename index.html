@@ -28,10 +28,14 @@
                     <i class="fas fa-brain"></i>
                     <span>Medical AI</span>
                 </div>
-                <span class="badge">BETA</span>
+                <span class="badge">WHISPER</span>
             </div>
             
             <div class="nav-actions">
+                <div id="modelStatus" class="model-status">
+                    <i class="fas fa-circle-notch fa-spin"></i>
+                    <span>Loading AI...</span>
+                </div>
                 <button id="darkModeToggle" class="btn-icon" title="Toggle Dark Mode">
                     <i class="fas fa-moon"></i>
                 </button>
@@ -44,47 +48,36 @@
         <div class="container">
             <div class="hero-content">
                 <div class="hero-badge">
-                    <i class="fas fa-sparkles"></i>
-                    Powered by AI
+                    <i class="fas fa-microchip"></i>
+                    Powered by Whisper AI (Runs in Browser)
                 </div>
                 <h1 class="hero-title">
                     Medical Speech-to-Text
-                    <span class="gradient-text">ระบบถอดเสียงทางการแพทย์</span>
+                    <span class="gradient-text">ถอดเสียงด้วย AI บนเบราว์เซอร์</span>
                 </h1>
                 <p class="hero-subtitle">
-                    บันทึกเสียงจากไมโครโฟนหรืออัพโหลดไฟล์ แล้วแปลงเป็นข้อความด้วย AI
+                    ถอดเสียงจากไฟล์โดยตรง ไม่ต้องเปิดลำโพง ไม่ต้องมี Backend
                 </p>
                 <button class="btn btn-primary btn-large" onclick="scrollToSection()">
                     <i class="fas fa-rocket"></i>
-                    เริ่มใช้งานเลย
+                    เริ่มใช้งาน
                 </button>
             </div>
         </div>
     </section>
 
     <!-- Main Content -->
-    
-<div class="alert alert-info">
-    <i class="fas fa-info-circle"></i>
-    <div>
-        <strong>วิธีการถอดเสียง:</strong>
-        <ol style="margin: 0.5rem 0 0 1.5rem;">
-            <li>บันทึกหรืออัพโหลดไฟล์เสียง</li>
-            <li>คลิก "เริ่มถอดเสียง"</li>
-            <li><strong>เปิดเสียงลำโพงในเครื่อง</strong> 🔊</li>
-            <li>อนุญาตให้ใช้ไมโครโฟน</li>
-            <li>รอจนเสียงเล่นจบ</li>
-        </ol>
-        <p style="margin-top: 0.5rem;">
-            <small>
-                <i class="fas fa-lightbulb"></i>
-                <strong>หมายเหตุ:</strong> ระบบใช้ Web Speech API ซึ่งจะฟังเสียงจากลำโพงและถอดเป็นข้อความ
-            </small>
-        </p>
-    </div>
-</div>
-
-
+    <main class="container">
+        
+        <!-- Info Alert -->
+        <div class="alert alert-info">
+            <i class="fas fa-info-circle"></i>
+            <div>
+                <strong>การใช้งานครั้งแรก:</strong>
+                <p>ระบบกำลังดาวน์โหลด AI Model (ประมาณ 75MB) กรุณารอสักครู่...</p>
+                <p><small>โมเดลจะถูกเก็บใน Cache ครั้งต่อไปจะเร็วขึ้น</small></p>
+            </div>
+        </div>
         
         <!-- Recording/Upload Section -->
         <section class="card" id="mainSection">
@@ -172,9 +165,32 @@
 
                     <button class="btn btn-success btn-large btn-block" id="transcribeBtn">
                         <i class="fas fa-play"></i>
-                        เริ่มถอดเสียง
+                        ถอดเสียงด้วย AI
                     </button>
                 </div>
+            </div>
+        </section>
+
+        <!-- Progress Section -->
+        <section id="progressSection" class="card" style="display: none;">
+            <h2>
+                <i class="fas fa-cog fa-spin"></i>
+                กำลังประมวลผล
+            </h2>
+            
+            <div class="progress-container">
+                <div class="progress-info">
+                    <span id="progressText">กำลังเตรียมการ...</span>
+                    <span id="progressPercent">0%</span>
+                </div>
+                <div class="progress-bar">
+                    <div class="progress-fill" id="progressFill"></div>
+                </div>
+            </div>
+            
+            <div class="processing-tips">
+                <p><i class="fas fa-lightbulb"></i> กำลังใช้ AI ถอดเสียง...</p>
+                <p><small>การประมวลผลอาจใช้เวลา 1-5 นาทีขึ้นอยู่กับความยาวของไฟล์</small></p>
             </div>
         </section>
 
@@ -194,18 +210,18 @@
             <div class="transcript-box">
                 <div class="transcript-header">
                     <h3>ข้อความที่ถอดได้</h3>
-                    <button class="btn-icon" id="copyBtn" title="Copy">
-                        <i class="fas fa-copy"></i>
-                    </button>
+                    <div class="transcript-actions">
+                        <button class="btn-icon" id="copyBtn" title="Copy">
+                            <i class="fas fa-copy"></i>
+                        </button>
+                        <button class="btn-icon" id="downloadBtn" title="Download">
+                            <i class="fas fa-download"></i>
+                        </button>
+                    </div>
                 </div>
                 <div id="transcriptText" class="transcript-text">
                     กำลังรอข้อมูล...
                 </div>
-            </div>
-
-            <div class="info-box">
-                <i class="fas fa-info-circle"></i>
-                <span>นี่คือ Demo Version - ผลลัพธ์จริงต้องเชื่อมต่อกับ Backend API</span>
             </div>
         </section>
 
@@ -220,7 +236,7 @@
                         <i class="fas fa-brain"></i>
                         <span>Medical AI</span>
                     </div>
-                    <p>ระบบถอดเสียงทางการแพทย์ด้วย AI</p>
+                    <p>ระบบถอดเสียงทางการแพทย์ด้วย AI บนเบราว์เซอร์</p>
                 </div>
                 <div class="footer-links">
                     <a href="#"><i class="fas fa-book"></i> คู่มือ</a>
@@ -242,9 +258,10 @@
     <div id="toastContainer" class="toast-container"></div>
 
     <!-- Scripts -->
+    <!-- Transformers.js - Whisper AI -->
+    <script type="module" src="js/whisper.js"></script>
     <script src="js/recorder.js"></script>
     <script src="js/ui.js"></script>
-    <script src="js/app.js"></script>
 
 </body>
 </html>
